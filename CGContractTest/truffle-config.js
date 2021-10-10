@@ -19,7 +19,7 @@
  */
 require('dotenv').config();
  const HDWalletProvider = require("@truffle/hdwallet-provider");
-const privateKey = "c3c220d484c8592f5d3f4e7aea2c202c5c8cc12dfa60809691d169416ad2f68f";
+const privateKey = process.env.PRIVATEKEY;
 
 module.exports = {
 
@@ -33,24 +33,28 @@ module.exports = {
         },
 
         mainnet: {
-            provider: function() {
-                return new HDWalletProvider(privateKey, "https://mainnet.infura.io/v3/<YOUR_INFURA_API_KEY>")
+            provider: () => new HDWalletProvider(mnemonic, `https://data-seed-prebsc-1-s1.binance.org:8545`),
+                network_id: 97,
+      confirmations: 10,
+      timeoutBlocks: 200,
+      skipDryRun: true
             },
-            network_id: "1"
-        },
-
-
-            rinkeby: {
-            provider: () => new HDWalletProvider(privateKey, `https://rinkeby.infura.io/v3/abcc19e38a814ff3b9145209e6d1891c`),
-            network_id: 4,       // Ropsten's id
-            gas: 5500000,        // Ropsten has a lower block limit than mainnet
+            testnet: {
+            provider: () => new HDWalletProvider(privateKey, `https://data-seed-prebsc-1-s1.binance.org:8545`),
+            network_id: 97,       // Ropsten's id
+            confirmations:10,
            timeoutBlocks: 200,  // # of blocks before a deployment times out  (minimum/default: 50)
             skipDryRun: true     // Skip dry run before migrations? (default: false for public nets )
              },
           },
     compilers: {
         solc: {
-            version: "0.5.5"
+            version: "0.8.0",
+            settings: {
+        optimizer: {
+          enabled: true,
+          runs: 100000  // Optimize for how many times you intend to run the code
+        }}
         }
     }
 };
