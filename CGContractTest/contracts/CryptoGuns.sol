@@ -13,7 +13,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URISto
 contract CryptoGuns is AccessControlUpgradeable, ERC721URIStorageUpgradeable{
   using AddressUpgradeable for address;
   using SafeMath32 for uint32;
-  using SafeMath16 for uint16;
 
   struct Swat {
     string name;
