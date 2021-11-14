@@ -4,14 +4,13 @@ pragma solidity ^0.8.0;
 import "./safemath32.sol";
 import "./ERC20Interface.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
 //import "./VRFConsumerBaseUpgradeable.sol";
 
 
-contract CryptoGuns is ERC721Upgradeable, AccessControlUpgradeable, ERC721URIStorageUpgradeable{
+contract CryptoGuns is AccessControlUpgradeable, ERC721URIStorageUpgradeable{
   using AddressUpgradeable for address;
   using SafeMath32 for uint32;
   using SafeMath16 for uint16;
@@ -42,7 +41,6 @@ mapping (address => uint) public ownerSwatCount; //# of swat units in wallet
 
 // Access Control Roles
 bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
 //Variables
 Swat[] public swats;
@@ -78,10 +76,9 @@ function initialize() public initializer {
      // __VRFConsumerBase_init(_VRFCoordinator, _LinkToken);
      _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
      _setupRole(MINTER_ROLE, _msgSender());
-     _setupRole(BURNER_ROLE, _msgSender());
          // for mainnet address bananaAdress = 0x603c7f932ed1fc6575303d8fb018fdcbb0f39a95;
-         // we made a test simple bep20token for testnet.
-     _acceptedToken = 0x603c7f932ED1fc6575303D8Fb018fDCBb0f39a95;
+         // we made a test simple bep20token for testnet. - 0x0C69F8B5133038D445d9dc9CA53a0061FE260Ea6
+     _acceptedToken = 0x603c7f932ed1fc6575303d8fb018fdcbb0f39a95;
 
       cooldownTime = 1 days;
       nonce = 0;
@@ -126,13 +123,12 @@ function addAdmin(address account) public virtual {
 
     swats.push(Swat(_name, _rarity, false, uint32(block.timestamp + cooldownTime)));
     uint id = swats.length - 1;
-    ownerSwatCount[_msgSender()] = ownerSwatCount[_msgSender()] + 1;
-    userOwnedSwats[_msgSender()].push(id);
+    ownerSwatCount[msg.sender] = ownerSwatCount[msg.sender] + 1;
+    userOwnedSwats[msg.sender].push(id);
     uint ownedSwatLength = userOwnedSwats[_msgSender()].length;
     swatIsAtIndex[id] = ownedSwatLength -1;
     _safeMint(_owner, id);
     emit NewSwat( _owner, id, _name);
-    //bytes32 rarity = keccak256(abi.encodePacked(_rarity));
     bytes32 swatName = keccak256(abi.encodePacked(_name));
     if(swatName == keccak256("jason")){
       _setTokenURI(id, _name);
@@ -309,16 +305,16 @@ function duplicateUpgrade(uint _swatId, uint _targetId) public{
 
         }
 
-  function  _burn(uint256 tokenId) internal virtual override(ERC721Upgradeable, ERC721URIStorageUpgradeable) {
-
-          // uint256 index = swatIsAtIndex[_targetId];
-          // ownerSwatCount[_msgSender()] = ownerSwatCount[_msgSender()] - 1;
-          //delete userOwnedSwats[msg.sender][index];
+  function  _burn(uint256 tokenId) internal virtual override(ERC721URIStorageUpgradeable) {
+          require(getSwatsOwnedBy(msg.sender) > 0, "Swat Count not high enough");
+          uint256 index = swatIsAtIndex[tokenId];
+        ownerSwatCount[msg.sender] = ownerSwatCount[msg.sender] - 1;
+         delete userOwnedSwats[msg.sender][index];
           return super._burn(tokenId);
   }
 
-
-  function tokenURI(uint256 tokenId) public view virtual override (ERC721Upgradeable, ERC721URIStorageUpgradeable) returns (string memory) {
+//ERC721Upgradeable
+  function tokenURI(uint256 tokenId) public view virtual override (ERC721URIStorageUpgradeable) returns (string memory) {
           return super.tokenURI(tokenId);
   }
 
@@ -349,10 +345,16 @@ function duplicateUpgrade(uint _swatId, uint _targetId) public{
       return (_swat.readyTime <= block.timestamp);
   }
 
+function getSwatsOwnedBy(address _owner) public view returns (uint){
+  uint SwatCount = ownerSwatCount[_owner];
+  return SwatCount;
+}
+
 //  BuyNFT Functions
 //Use Approve function on token on front-end UI before running this.
   function buyNFT(address _buyer) public {
     require(_msgSender() == _buyer, "A player can only buy characters for their own wallet");
+    require(acceptedToken.approve(address(this), swatPrice), "Approval Declined");
      require(acceptedToken.transferFrom(_msgSender(), address(this), swatPrice), "Transferring the sale amount failed");
          mintRandomSwat(_buyer);
          emit Purchased(_buyer);
@@ -370,11 +372,6 @@ function duplicateUpgrade(uint _swatId, uint _targetId) public{
          return swatPrice;
      }
 
-     function setAcceptedToken(address newAcceptedToken) public {
-       require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to perform this operation");
-       require(newAcceptedToken.isContract(), "The accepted token address must be a deployed contract");
-         _acceptedToken = newAcceptedToken;
-     }
 
      function withdrawToken (uint _amount) external{
      require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to perform this operation");

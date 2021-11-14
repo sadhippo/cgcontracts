@@ -22,15 +22,33 @@ contract("CryptoGuns (proxy)", (accounts) => {
     //   expect(result.receipt.status).to.equal(true);
     //
     // })
-    it("grants Minter Role to other", async () => {
+    it("grants Minter Role to other, confirms getSwatName", async () => {
 
      const result = await this.contractInstance.addMinter(other, {from:owner});
       expect(result.receipt.status).to.equal(true);
       const swat1 = await this.contractInstance.mintSpecificSwat(other, "nightmare", "legendary", {from: other});
-      const balance = await this.contractInstance.balanceOf(other);
+      const name = await this.contractInstance.getSwatName(0);
 
-      expect(balance.toString()).to.equal("1");
+      expect(name).to.equal("nightmare");
     })
+    it("Gets swat count", async () => {
+
+     const result = await this.contractInstance.addMinter(other, {from:owner});
+      expect(result.receipt.status).to.equal(true);
+      const swat1 = await this.contractInstance.mintSpecificSwat(other, "nightmare", "legendary", {from: other});
+      const swatCount = await this.contractInstance.getSwatsOwnedBy(other);
+      expect(swatCount.toNumber()).to.equal(1);
+    })
+    it("gets Rarity", async () => {
+
+     const result = await this.contractInstance.addMinter(other, {from:owner});
+      expect(result.receipt.status).to.equal(true);
+      const swat1 = await this.contractInstance.mintSpecificSwat(other, "nightmare", "legendary", {from: other});
+      const rarity = await this.contractInstance.getRarity(0);
+
+      expect(rarity).to.equal("legendary");
+    })
+
 
     it("sets swatPrice to 5", async () => {
       const admin = await this.contractInstance.addAdmin(other, {from:owner});
