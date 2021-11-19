@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./safemath32.sol";
 import "./ERC20Interface.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
@@ -11,8 +12,8 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URISto
 
 
 contract CryptoGuns is AccessControlUpgradeable, ERC721URIStorageUpgradeable{
-  using AddressUpgradeable for address;
   using SafeMath32 for uint32;
+  using SafeMathUpgradeable for uint256;
 
   struct Swat {
     string name;
@@ -77,7 +78,7 @@ function initialize() public initializer {
      _setupRole(MINTER_ROLE, _msgSender());
          // for mainnet address bananaAdress = 0x603c7f932ed1fc6575303d8fb018fdcbb0f39a95;
          // we made a test simple bep20token for testnet. - 0x0C69F8B5133038D445d9dc9CA53a0061FE260Ea6
-     _acceptedToken = 0x603c7f932ed1fc6575303d8fb018fdcbb0f39a95;
+     _acceptedToken = 0x603c7f932ED1fc6575303D8Fb018fDCBb0f39a95;
 
       cooldownTime = 1 days;
       nonce = 0;
@@ -150,7 +151,7 @@ function addAdmin(address account) public virtual {
           else if(swatName == keccak256("jaguar")){
         _setTokenURI(id, _name);
       }
-      else if(swatName == keccak256("pistolpete.")){
+      else if(swatName == keccak256("pistolpete")){
         _setTokenURI(id, _name);
       }
       else if(swatName == keccak256("freya")){
@@ -305,13 +306,29 @@ function duplicateUpgrade(uint _swatId, uint _targetId) public{
         }
 
   function  _burn(uint256 tokenId) internal virtual override(ERC721URIStorageUpgradeable) {
-          require(getSwatsOwnedBy(msg.sender) > 0, "Swat Count not high enough");
           uint256 index = swatIsAtIndex[tokenId];
         ownerSwatCount[msg.sender] = ownerSwatCount[msg.sender] - 1;
          delete userOwnedSwats[msg.sender][index];
+         //swatIsAtIndex[tokenId] = -1;
           return super._burn(tokenId);
   }
 
+
+//removes the unit from the owner's swat count. then it adds the unit to the recievers swat count and it updates the swatIndex to it's position in the recievers wallet.
+// then it sets the mapping userOwnedSwats to an outrageously high number that we tell the front-end to ignore on load.
+  function  _transfer(address _from, address _to, uint256 _tokenId) internal virtual override {
+          require(_from == msg.sender, "You must own the unit you want to trade");
+            uint256 index = swatIsAtIndex[_tokenId];
+            //update mappings
+          ownerSwatCount[_from] = ownerSwatCount[_from] - 1;
+          ownerSwatCount[_to] = ownerSwatCount[_to] + 1;
+          userOwnedSwats[_to].push(_tokenId);
+          uint256 toOwnedSwatLength = userOwnedSwats[_to].length;
+          swatIsAtIndex[_tokenId] = toOwnedSwatLength - 1;
+          userOwnedSwats[_from][index] = 999999;
+
+          return super._transfer(_from, _to, _tokenId);
+  }
 //ERC721Upgradeable
   function tokenURI(uint256 tokenId) public view virtual override (ERC721URIStorageUpgradeable) returns (string memory) {
           return super.tokenURI(tokenId);
@@ -349,22 +366,29 @@ function getSwatsOwnedBy(address _owner) public view returns (uint){
   return SwatCount;
 }
 
+function getSwatIndex(uint _id) public view returns (uint){
+  uint SwatIndex = swatIsAtIndex[_id];
+  return SwatIndex;
+}
+
 //  BuyNFT Functions
-//Use Approve function on token on front-end UI before running this.
+// Use Approve function on token on front-end UI before running this.
   function buyNFT(address _buyer) public {
     require(_msgSender() == _buyer, "A player can only buy characters for their own wallet");
-    require(acceptedToken.approve(address(this), swatPrice), "Approval Declined");
-     require(acceptedToken.transferFrom(_msgSender(), address(this), swatPrice), "Transferring the sale amount failed");
-         mintRandomSwat(_buyer);
-         emit Purchased(_buyer);
+    require(acceptedToken.transferFrom(_msgSender(), address(this), swatPrice), "Transferring the sale amount failed");
+    mintRandomSwat(_buyer);
+
+    emit Purchased(_buyer);
       }
 
 
      function setSwatPrice(uint256 _price) public {
         require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "User does not have Admin Role");
-       require(_price > 1, "Price can not less than 1");
-       require(_price != 20, "Price can not be more than 20s");
+       require(_price > 1 * 10^18, "Price can not less than 1");
+       require(_price != 20 * 10^18, "Price can not be more than 20s");
        swatPrice = _price;
+
+       emit SwatPriceSet(_price);
      }
 
      function getSwatPrice() public view returns (uint256) {
@@ -374,8 +398,7 @@ function getSwatsOwnedBy(address _owner) public view returns (uint){
 
      function withdrawToken (uint _amount) external{
      require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to perform this operation");
-     require(acceptedToken.approve(_msgSender(), _amount), "Approval Declined");
-     require(acceptedToken.transferFrom(address(this), _msgSender(), _amount), "Transferring the desire amount failed");
+     require(acceptedToken.transfer(address(this), _msgSender(), _amount), "Transferring the desire amount failed");
      emit TokenWithdrawal(_amount);
      }
 }
