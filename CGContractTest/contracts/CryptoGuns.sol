@@ -375,13 +375,13 @@ function getSwatIndex(uint _id) public view returns (uint){
 
 //  BuyNFT Functions
 // Use Approve function on token on front-end UI before running this.
-  // function buyNFT(address _buyer) public {
-  //   require(_msgSender() == _buyer, "A player can only buy characters for their own wallet");
-  //   require(acceptedToken.transferFrom(_msgSender(), address(this), swatPrice), "Transferring the sale amount failed");
-  //   mintRandomSwat(_buyer);
-  //
-  //   emit Purchased(_buyer);
-  //     }
+  function buyNFT(address _buyer) public {
+    require(_msgSender() == _buyer, "A player can only buy characters for their own wallet");
+    require(acceptedToken.transferFrom(_msgSender(), address(this), swatPrice), "Transferring the sale amount failed");
+    mintRandomSwat(_buyer);
+
+    emit Purchased(_buyer);
+      }
 
 
      function setSwatPrice(uint256 _price) public {
